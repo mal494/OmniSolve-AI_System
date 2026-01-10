@@ -81,3 +81,75 @@ Memory is advisory only and never overrides the disk-derived project state.
 This architecture prioritizes predictability, safety, and incremental evolution over raw generation speed, 
 enabling OmniSolve to operate as a reliable development partner rather than a one-shot code generator.
 
+## Quick Start
+
+### Installation
+
+See [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) for detailed setup instructions.
+
+### Running Tests
+
+OmniSolve v3.0 includes comprehensive test coverage:
+
+```bash
+# Install test dependencies
+pip install -r requirements.txt
+
+# Run all tests
+python -m pytest
+
+# Run with coverage
+python -m pytest --cov=Core --cov-report=html
+```
+
+See [TESTING_GUIDE.md](TESTING_GUIDE.md) for detailed testing documentation.
+
+### Example Projects
+
+The `examples/` directory contains self-contained projects demonstrating incremental continuation:
+
+- **simple_calculator** - Basic calculator with step-by-step enhancement guide
+- **todo_list** - Todo application showing data persistence and CRUD operations
+
+These examples include instructions for testing OmniSolve's continuation capabilities.
+
+## Documentation
+
+- **[README.md](README.md)** - This file: System overview and design goals
+- **[INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)** - Setup and configuration
+- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing infrastructure and guidelines
+- **[FILE_LIST_v3.0.md](FILE_LIST_v3.0.md)** - Complete file reference
+- **[DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md)** - Navigation guide
+- **[REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)** - v2.4 → v3.0 changes
+- **[POST_INSTALL_CHECKLIST.md](POST_INSTALL_CHECKLIST.md)** - Verification steps
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** - Future development plans
+
+## Project Status
+
+**Current Version**: 3.0
+
+**Recent Improvements**:
+- ✅ Modular architecture with 23 refactored modules
+- ✅ Comprehensive test suite (30+ unit tests, integration tests)
+- ✅ Performance optimizations (PSI caching, pre-compiled regex)
+- ✅ Structured logging with JSON audit trails
+- ✅ Custom exception hierarchy
+- ✅ GitHub Actions CI/CD pipeline
+- ✅ Example projects for testing continuation
+
+**Test Coverage**: 36% (growing - focus on core utilities)
+
+## Contributing
+
+When contributing code:
+1. Write tests first (see TESTING_GUIDE.md)
+2. Ensure all tests pass: `python -m pytest`
+3. Check coverage: `python -m pytest --cov=Core`
+4. Follow existing code style and patterns
+5. Update documentation as needed
+
+## License
+
+See project documentation for license information.
+
+

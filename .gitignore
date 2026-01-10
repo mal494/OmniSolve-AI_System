@@ -2,6 +2,14 @@
 __pycache__/
 *.pyc
 
+# Test coverage and artifacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+*.cover
+coverage.xml
+
 # Logs and runtime output
 Logs/
 Runtime/
