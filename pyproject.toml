@@ -1,0 +1,36 @@
+[tool.pytest.ini_options]
+# Pytest configuration for OmniSolve
+
+# Test discovery patterns
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Test paths
+testpaths = ["tests"]
+
+# Output options
+addopts = [
+    "-v",                   # Verbose output
+    "--strict-markers",     # Strict marker checking
+    "--tb=short",          # Short traceback format
+    "--cov=Core",          # Coverage for Core module
+    "--cov-report=term-missing",  # Show missing lines
+    "--cov-report=html",   # HTML coverage report
+]
+
+# Markers for organizing tests
+markers = [
+    "unit: Unit tests for individual components",
+    "integration: Integration tests for workflows",
+    "slow: Tests that take significant time to run",
+]
+
+# Minimum Python version
+minversion = "7.0"
+
+# Log settings for tests
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
