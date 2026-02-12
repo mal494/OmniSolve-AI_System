@@ -3,6 +3,11 @@ Setup script for OmniSolve AI System
 """
 from setuptools import setup, find_packages
 from pathlib import Path
+import sys
+
+# Add Core to path to import version
+sys.path.insert(0, str(Path(__file__).parent))
+from Core.version import __version__
 
 # Read the README for long description
 readme_file = Path(__file__).parent / "README.md"
@@ -21,7 +26,7 @@ if requirements_file.exists():
 
 setup(
     name="omnisolve-ai-system",
-    version="3.0.0",
+    version=__version__,
     author="OmniSolve Contributors",
     author_email="",
     description="A local, role-based AI software orchestration system",
