@@ -10,6 +10,11 @@ aiofiles>=23.2.1
 # Optional: Progress bars (uncomment if desired)
 # tqdm>=4.66.0
 
+# Testing framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
 # Note: Python 3.8+ required for type hints and async features
 
 # Optional system monitoring
