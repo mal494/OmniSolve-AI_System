@@ -1,0 +1,38 @@
+# Include documentation files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+
+# Include requirements
+include requirements.txt
+include mypy.ini
+include pyproject.toml
+
+# Include documentation
+recursive-include docs *.md *.txt *.rst
+
+# Include configuration files
+recursive-include Config *.json
+
+# Include test fixtures but not test outputs
+recursive-include tests *.py *.json
+
+# Include examples
+recursive-include examples *.py *.md *.json
+
+# Exclude build artifacts and caches
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude .DS_Store
+global-exclude *.log
+
+# Exclude runtime and generated content
+prune Logs
+prune Projects
+prune Runtime
+prune Models
+prune Engine
+prune SillyTavern

@@ -2,6 +2,6 @@
 OmniSolve Core Module
 """
 from .orchestrator import OmniSolveOrchestrator, main
+from .version import __version__, __version_info__
 
-__version__ = "3.0.0"
-__all__ = ['OmniSolveOrchestrator', 'main']
+__all__ = ['OmniSolveOrchestrator', 'main', '__version__', '__version_info__']

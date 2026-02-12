@@ -1,6 +1,29 @@
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Python distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
 # Test coverage and artifacts
 .coverage
@@ -9,21 +32,37 @@ htmlcov/
 .pytest_cache/
 *.cover
 coverage.xml
+.tox/
+.nox/
+.hypothesis/
 
 # Logs and runtime output
 Logs/
 Runtime/
+*.log
 
 # Virtual environments
 .venv/
 venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 
 # IDE settings
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
 
 # OS junk
 .DS_Store
 Thumbs.db
+*.bak
 
 # Generated project output
 Projects/
@@ -34,8 +73,23 @@ Models/
 # Third Party Applications
 SillyTavern/
 
-Engine/.exe
-Engine/.dll
-Engine/.bin
-Engine/.so
+# Engine binaries
+Engine/*.exe
+Engine/*.dll
+Engine/*.bin
+Engine/*.so
 Engine/*.dylib
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
