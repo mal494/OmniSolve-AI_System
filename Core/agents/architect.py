@@ -70,10 +70,10 @@ JSON OUTPUT:"""
         file_list = extract_json(response)
 
         if not file_list:
-            self.logger.error(f"Failed to extract JSON. Response: {response[:200]}")
-            raise ParsingError(
+            self.handle_extraction_error(
+                response,
                 "Architect failed to generate valid file structure",
-                {'response': response[:500]}
+                ParsingError
             )
 
         # Validate structure

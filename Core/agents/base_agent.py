@@ -265,6 +265,25 @@ RESPONSE:
         """
         audit_log(event_name, **kwargs)
 
+    def handle_extraction_error(self, response: str, error_message: str, error_class: type, context: Optional[Dict[str, Any]] = None):
+        """
+        Log and raise an error when extraction fails.
+
+        Args:
+            response: The response that failed to extract
+            error_message: The error message to log and raise
+            error_class: The exception class to raise
+            context: Optional additional context for the error
+
+        Raises:
+            The specified error_class with the message and context
+        """
+        self.logger.error(f"{error_message}. Response: {response[:200]}")
+        error_context = {'response': response[:500]}
+        if context:
+            error_context.update(context)
+        raise error_class(error_message, error_context)
+
 
 class ParallelAgentExecutor:
     """Executes multiple agents in parallel when appropriate."""

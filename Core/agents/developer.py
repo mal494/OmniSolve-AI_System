@@ -153,10 +153,10 @@ CONTENT:"""
         if file_path.endswith('.py'):
             code = extract_code(response, validate_non_empty=True)
             if not code:
-                self.logger.error(f"Failed to extract code. Response: {response[:200]}")
-                raise CodeGenerationError(
+                self.handle_extraction_error(
+                    response,
                     f"Failed to generate valid code for {file_path}",
-                    {'response': response[:500]}
+                    CodeGenerationError
                 )
             # Validate syntax
             is_valid, error_msg = validate_python_syntax(code)
@@ -170,10 +170,10 @@ CONTENT:"""
             # Extract JSON object/array from response
             parsed = extract_json_any(response)
             if parsed is None:
-                self.logger.error(f"Failed to extract JSON content. Response: {response[:200]}")
-                raise CodeGenerationError(
+                self.handle_extraction_error(
+                    response,
                     f"Failed to generate valid JSON for {file_path}",
-                    {'response': response[:500]}
+                    CodeGenerationError
                 )
             # Normalize JSON string
             import json
