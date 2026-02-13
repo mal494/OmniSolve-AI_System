@@ -16,6 +16,38 @@ from ..logging import get_logger
 logger = get_logger('validation')
 
 
+def _validate_non_empty_string(value: Any, field_name: str, min_length: int = 0) -> Tuple[List[str], List[str]]:
+    """
+    Validate that a value is a non-empty string.
+    
+    Args:
+        value: Value to validate
+        field_name: Name of the field for error messages
+        min_length: Minimum length for warnings
+        
+    Returns:
+        Tuple of (errors, warnings)
+    """
+    errors = []
+    warnings = []
+    
+    # Check type
+    if not isinstance(value, str):
+        errors.append(f"{field_name} must be a string, got {type(value).__name__}")
+        return errors, warnings
+    
+    # Check if empty
+    if not value.strip():
+        errors.append(f"{field_name} is empty")
+        return errors, warnings
+    
+    # Check minimum length if specified
+    if min_length > 0 and len(value.strip()) < min_length:
+        warnings.append(f"{field_name} is very short ({len(value.strip())} chars) - may lack detail")
+    
+    return errors, warnings
+
+
 class ValidationResult:
     """Result of a validation operation."""
     
@@ -136,22 +168,9 @@ def validate_planner_output(plan: Any) -> ValidationResult:
     Returns:
         ValidationResult with detailed feedback
     """
-    errors = []
-    warnings = []
-    
-    # Check if it's a string
-    if not isinstance(plan, str):
-        errors.append(f"Plan must be a string, got {type(plan).__name__}")
+    errors, warnings = _validate_non_empty_string(plan, "Plan", min_length=50)
+    if errors:
         return ValidationResult(False, errors)
-    
-    # Check if empty
-    if not plan.strip():
-        errors.append("Plan is empty")
-        return ValidationResult(False, errors)
-    
-    # Check minimum length (plans should have some substance)
-    if len(plan.strip()) < 50:
-        warnings.append(f"Plan is very short ({len(plan.strip())} chars) - may lack detail")
     
     # Check for common plan elements
     plan_lower = plan.lower()
@@ -177,22 +196,9 @@ def validate_developer_output(code: Any, file_path: Optional[str] = None) -> Val
     Returns:
         ValidationResult with detailed feedback
     """
-    errors = []
-    warnings = []
-    
-    # Check if it's a string
-    if not isinstance(code, str):
-        errors.append(f"Code must be a string, got {type(code).__name__}")
+    errors, warnings = _validate_non_empty_string(code, "Code", min_length=10)
+    if errors:
         return ValidationResult(False, errors)
-    
-    # Check if empty
-    if not code.strip():
-        errors.append("Code is empty")
-        return ValidationResult(False, errors)
-    
-    # Check for minimum content
-    if len(code.strip()) < 10:
-        warnings.append("Code is very short - may be incomplete")
     
     # Python-specific validation (if file_path suggests Python)
     if file_path and file_path.endswith('.py'):
@@ -230,17 +236,9 @@ def validate_task_description(task: str) -> ValidationResult:
     Returns:
         ValidationResult with detailed feedback
     """
-    errors = []
-    warnings = []
-    
-    # Check if empty
-    if not task or not task.strip():
-        errors.append("Task description is empty")
+    errors, warnings = _validate_non_empty_string(task, "Task description", min_length=10)
+    if errors:
         return ValidationResult(False, errors)
-    
-    # Check minimum length
-    if len(task.strip()) < 10:
-        warnings.append("Task description is very short - may lack detail")
     
     # Check if too long
     if len(task) > 2000:
@@ -271,12 +269,8 @@ def validate_project_name(project_name: str) -> ValidationResult:
     Returns:
         ValidationResult with detailed feedback
     """
-    errors = []
-    warnings = []
-    
-    # Check if empty
-    if not project_name or not project_name.strip():
-        errors.append("Project name is empty")
+    errors, warnings = _validate_non_empty_string(project_name, "Project name")
+    if errors:
         return ValidationResult(False, errors)
     
     # Check for invalid characters
@@ -357,12 +351,8 @@ def validate_file_path(file_path: str, project_root: Optional[Path] = None) -> V
     Returns:
         ValidationResult with detailed feedback
     """
-    errors = []
-    warnings = []
-    
-    # Check if empty
-    if not file_path or not file_path.strip():
-        errors.append("File path is empty")
+    errors, warnings = _validate_non_empty_string(file_path, "File path")
+    if errors:
         return ValidationResult(False, errors)
     
     # Check for path traversal attempts
