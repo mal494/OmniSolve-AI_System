@@ -235,7 +235,10 @@ RESPONSE:
         Args:
             context: The context dictionary
             keys: List of keys to extract
-            defaults: Optional dict of custom defaults (otherwise uses 'unknown' for strings, empty list for lists)
+            defaults: Optional dict of custom defaults for specific keys.
+                     For keys not in defaults:
+                     - 'file_list' and 'files' default to []
+                     - All other keys default to 'unknown'
 
         Returns:
             Dictionary with extracted values
