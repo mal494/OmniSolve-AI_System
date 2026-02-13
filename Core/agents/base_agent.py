@@ -228,6 +228,43 @@ RESPONSE:
         """Get the agent's role."""
         return self.role
 
+    def extract_context(self, context: Dict[str, Any], keys: List[str], defaults: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Extract multiple keys from context dictionary with default values.
+
+        Args:
+            context: The context dictionary
+            keys: List of keys to extract
+            defaults: Optional dict of custom defaults (otherwise uses 'unknown' for strings, empty list for lists)
+
+        Returns:
+            Dictionary with extracted values
+        """
+        defaults = defaults or {}
+        result = {}
+        
+        for key in keys:
+            if key in defaults:
+                default_value = defaults[key]
+            elif key in ['file_list', 'files']:
+                default_value = []
+            else:
+                default_value = 'unknown'
+            
+            result[key] = context.get(key, default_value)
+        
+        return result
+
+    def log_completion(self, event_name: str, **kwargs):
+        """
+        Log agent completion with audit trail.
+
+        Args:
+            event_name: The event name for audit log
+            **kwargs: Additional key-value pairs to log
+        """
+        audit_log(event_name, **kwargs)
+
 
 class ParallelAgentExecutor:
     """Executes multiple agents in parallel when appropriate."""

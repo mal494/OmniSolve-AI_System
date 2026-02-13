@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional
 from .base_agent import BaseAgent
 from ..utils.text_parsers import extract_code, validate_python_syntax, extract_json_any
 from ..exceptions.errors import CodeGenerationError
-from ..logging import audit_log
 
 
 class DeveloperAgent(BaseAgent):
@@ -32,10 +31,11 @@ class DeveloperAgent(BaseAgent):
         Raises:
             CodeGenerationError: If unable to generate valid code
         """
-        psi = context.get('psi', '')
-        blueprint = context.get('blueprint', '')
-        file_path = context.get('file_path', 'unknown')
-        project_name = context.get('project_name', 'unknown')
+        ctx = self.extract_context(context, ['psi', 'blueprint', 'file_path', 'project_name'], {'psi': '', 'blueprint': ''})
+        psi = ctx['psi']
+        blueprint = ctx['blueprint']
+        file_path = ctx['file_path']
+        project_name = ctx['project_name']
 
         self.logger.info(f"Generating code for: {file_path}")
 
@@ -190,7 +190,7 @@ CONTENT:"""
             audit_meta = {'raw': True}
 
         self.logger.info(f"Generated content for {file_path} ({len(result)} chars)")
-        audit_log(
+        self.log_completion(
             'developer_complete',
             project_name=project_name,
             file_path=file_path,
