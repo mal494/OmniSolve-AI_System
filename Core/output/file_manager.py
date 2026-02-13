@@ -60,6 +60,50 @@ class FileManager:
         self.logger.debug(f"Ensured project directory exists: {project_path}")
         return project_path
 
+    def _prepare_file_path(self, project_name: str, file_path: str) -> Path:
+        """
+        Prepare and validate file path for writing.
+
+        Args:
+            project_name: Name of the project
+            file_path: Relative path within project
+
+        Returns:
+            Full path to the file
+        """
+        project_path = self.ensure_project_exists(project_name)
+
+        # Remove project name prefix if present in file_path
+        if file_path.startswith(f"{project_name}/"):
+            file_path = file_path[len(project_name) + 1:]
+
+        full_path = project_path / file_path
+
+        # Ensure parent directory exists
+        full_path.parent.mkdir(exist_ok=True, parents=True)
+
+        return full_path
+
+    def _validate_content(self, file_path: str, content: str, validate: bool = True):
+        """
+        Validate file content based on file type.
+
+        Args:
+            file_path: Path to the file
+            content: Content to validate
+            validate: Whether to validate
+
+        Raises:
+            FileOperationError: If validation fails
+        """
+        if validate and file_path.endswith('.py'):
+            is_valid, error_msg = validate_python_syntax(content)
+            if not is_valid:
+                raise FileOperationError(
+                    f"Invalid Python syntax in {file_path}: {error_msg}",
+                    {'file': file_path, 'error': error_msg}
+                )
+
     def write_file(
         self,
         project_name: str,
@@ -85,26 +129,9 @@ class FileManager:
             FileOperationError: If write fails
         """
         try:
-            # Get full path
-            project_path = self.ensure_project_exists(project_name)
-
-            # Remove project name prefix if present in file_path
-            if file_path.startswith(f"{project_name}/"):
-                file_path = file_path[len(project_name) + 1:]
-
-            full_path = project_path / file_path
-
-            # Ensure parent directory exists
-            full_path.parent.mkdir(exist_ok=True, parents=True)
-
-            # Validate if it's a Python file
-            if validate and file_path.endswith('.py'):
-                is_valid, error_msg = validate_python_syntax(content)
-                if not is_valid:
-                    raise FileOperationError(
-                        f"Invalid Python syntax in {file_path}: {error_msg}",
-                        {'file': file_path, 'error': error_msg}
-                    )
+            # Prepare path and validate content
+            full_path = self._prepare_file_path(project_name, file_path)
+            self._validate_content(file_path, content, validate)
 
             # Backup existing file if requested
             if backup and full_path.exists():
@@ -156,25 +183,9 @@ class FileManager:
             Path to the written file
         """
         try:
-            # Get full path
-            project_path = self.ensure_project_exists(project_name)
-
-            if file_path.startswith(f"{project_name}/"):
-                file_path = file_path[len(project_name) + 1:]
-
-            full_path = project_path / file_path
-
-            # Ensure parent directory exists
-            full_path.parent.mkdir(exist_ok=True, parents=True)
-
-            # Validate if it's a Python file
-            if validate and file_path.endswith('.py'):
-                is_valid, error_msg = validate_python_syntax(content)
-                if not is_valid:
-                    raise FileOperationError(
-                        f"Invalid Python syntax in {file_path}: {error_msg}",
-                        {'file': file_path, 'error': error_msg}
-                    )
+            # Prepare path and validate content using shared helpers
+            full_path = self._prepare_file_path(project_name, file_path)
+            self._validate_content(file_path, content, validate)
 
             # Write async
             try:
