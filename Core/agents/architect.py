@@ -2,7 +2,6 @@
 Architect agent - Designs file structures for projects.
 """
 from typing import Dict, Any, List
-from ..logging.logger import audit_log
 from .base_agent import BaseAgent
 from ..utils.text_parsers import extract_json
 from ..exceptions.errors import ParsingError
@@ -32,8 +31,9 @@ class ArchitectAgent(BaseAgent):
         Raises:
             ParsingError: If unable to extract valid JSON
         """
-        psi = context.get('psi', '')
-        project_name = context.get('project_name', 'unknown')
+        ctx = self.extract_context(context, ['psi', 'project_name'], {'psi': ''})
+        psi = ctx['psi']
+        project_name = ctx['project_name']
 
         self.logger.info(f"Designing file structure for: {task[:50]}...")
 
@@ -70,10 +70,10 @@ JSON OUTPUT:"""
         file_list = extract_json(response)
 
         if not file_list:
-            self.logger.error(f"Failed to extract JSON. Response: {response[:200]}")
-            raise ParsingError(
+            self.handle_extraction_error(
+                response,
                 "Architect failed to generate valid file structure",
-                {'response': response[:500]}
+                ParsingError
             )
 
         # Validate structure
@@ -85,7 +85,7 @@ JSON OUTPUT:"""
                 )
 
         self.logger.info(f"Generated file structure with {len(file_list)} files")
-        audit_log(
+        self.log_completion(
             'architect_complete',
             project_name=project_name,
             file_count=len(file_list),

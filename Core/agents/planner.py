@@ -3,7 +3,6 @@ Planner agent - Creates pseudocode/logic blueprints.
 """
 from typing import Dict, Any
 from .base_agent import BaseAgent
-from ..logging import audit_log
 
 
 class PlannerAgent(BaseAgent):
@@ -27,9 +26,10 @@ class PlannerAgent(BaseAgent):
         Returns:
             Pseudocode/logic blueprint as string
         """
-        psi = context.get('psi', '')
-        file_list = context.get('file_list', [])
-        project_name = context.get('project_name', 'unknown')
+        ctx = self.extract_context(context, ['psi', 'file_list', 'project_name'], {'psi': ''})
+        psi = ctx['psi']
+        file_list = ctx['file_list']
+        project_name = ctx['project_name']
 
         self.logger.info(f"Creating logic blueprint for {len(file_list)} files")
 
@@ -71,7 +71,7 @@ LOGIC BLUEPRINT:"""
         blueprint = self.query_brain(prompt, temperature=0.4)
 
         self.logger.info(f"Generated logic blueprint ({len(blueprint)} chars)")
-        audit_log(
+        self.log_completion(
             'planner_complete',
             project_name=project_name,
             blueprint_length=len(blueprint),

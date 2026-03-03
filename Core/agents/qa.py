@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, Tuple
 from .base_agent import BaseAgent
 from ..utils.text_parsers import validate_python_syntax
 from ..exceptions.errors import CodeValidationError
-from ..logging import audit_log
 
 
 class QAAgent(BaseAgent):
@@ -29,9 +28,10 @@ class QAAgent(BaseAgent):
         Returns:
             Tuple of (passed: bool, feedback: str)
         """
-        code = context.get('code', '')
-        file_path = context.get('file_path', 'unknown')
-        project_name = context.get('project_name', 'unknown')
+        ctx = self.extract_context(context, ['code', 'file_path', 'project_name'], {'code': ''})
+        code = ctx['code']
+        file_path = ctx['file_path']
+        project_name = ctx['project_name']
 
         self.logger.info(f"Reviewing code for: {file_path}")
 
@@ -42,7 +42,7 @@ class QAAgent(BaseAgent):
                 parsed = json.loads(code)
             except Exception as e:
                 self.logger.warning(f"JSON validation failed: {e}")
-                audit_log(
+                self.log_completion(
                     'qa_failed',
                     project_name=project_name,
                     file_path=file_path,
@@ -57,7 +57,7 @@ class QAAgent(BaseAgent):
                 if missing_keys:
                     reason = f"Missing keys: {', '.join(missing_keys)}"
                     self.logger.warning(f"Config JSON missing keys: {missing_keys}")
-                    audit_log(
+                    self.log_completion(
                         'qa_failed',
                         project_name=project_name,
                         file_path=file_path,
@@ -69,7 +69,7 @@ class QAAgent(BaseAgent):
                 if not isinstance(parsed.get('settings'), dict):
                     reason = "'settings' must be an object"
                     self.logger.warning(f"Config JSON invalid 'settings' type")
-                    audit_log(
+                    self.log_completion(
                         'qa_failed',
                         project_name=project_name,
                         file_path=file_path,
@@ -94,7 +94,7 @@ REVIEW:"""
             is_valid, syntax_error = validate_python_syntax(code)
             if not is_valid:
                 self.logger.warning(f"Syntax validation failed: {syntax_error}")
-                audit_log(
+                self.log_completion(
                     'qa_failed',
                     project_name=project_name,
                     file_path=file_path,
@@ -138,7 +138,7 @@ REVIEW:"""
 
         if passed:
             self.logger.info(f"Code passed QA review: {file_path}")
-            audit_log(
+            self.log_completion(
                 'qa_passed',
                 project_name=project_name,
                 file_path=file_path,
@@ -146,7 +146,7 @@ REVIEW:"""
             )
         else:
             self.logger.warning(f"Code failed QA review: {file_path}")
-            audit_log(
+            self.log_completion(
                 'qa_failed',
                 project_name=project_name,
                 file_path=file_path,
