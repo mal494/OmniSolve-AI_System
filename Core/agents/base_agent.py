@@ -3,27 +3,29 @@ Base agent class with common functionality.
 All specialized agents inherit from this class.
 """
 import time
-import requests
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List, Optional
 
+from ..brain import BrainAPI, CircuitBreaker, create_brain
 from ..config import (
-    API_URL,
-    API_TIMEOUT,
     DEFAULT_MAX_CONTEXT_LENGTH,
     DEFAULT_MAX_LENGTH,
     DEFAULT_TEMPERATURE,
     RETRY_TEMPERATURE_INCREMENT,
     MAX_RETRIES,
     RETRY_DELAY,
-    STOP_TOKENS
+    RETRY_DELAY_MAX,
+    STOP_TOKENS,
+    CIRCUIT_BREAKER_THRESHOLD,
+    CIRCUIT_BREAKER_TIMEOUT,
 )
 from ..config.config_loader import config_loader
 from ..exceptions.errors import (
     BrainConnectionError,
     BrainResponseError,
-    RetryExhaustedError
+    CircuitOpenError,
+    RetryExhaustedError,
 )
 from ..logging import get_logger, audit_log
 
@@ -36,16 +38,29 @@ class BaseAgent(ABC):
     Provides common functionality for querying the brain and handling responses.
     """
 
-    def __init__(self, role: str):
+    def __init__(self, role: str, brain: Optional[BrainAPI] = None):
         """
         Initialize the agent.
 
         Args:
             role: The agent's role name (used to load persona)
+            brain: Optional BrainAPI instance (dependency injection).
+                   Defaults to the configured backend via create_brain().
         """
         self.role = role
         self.persona = config_loader.load_persona(role)
         self.logger = get_logger(f'agent.{role.lower()}')
+
+        # Brain backend (injectable for testing / multi-LLM)
+        self._brain: BrainAPI = brain if brain is not None else create_brain()
+
+        # Per-agent circuit breaker
+        self._circuit_breaker = CircuitBreaker(
+            threshold=CIRCUIT_BREAKER_THRESHOLD,
+            timeout=CIRCUIT_BREAKER_TIMEOUT,
+            name=f"{role}_brain",
+        )
+
         self.logger.info(f"{self.persona['name']} agent initialized")
 
     @abstractmethod
@@ -61,7 +76,6 @@ class BaseAgent(ABC):
         Returns:
             Processing result (type varies by agent)
         """
-        pass
 
     def query_brain(
         self,
@@ -69,10 +83,10 @@ class BaseAgent(ABC):
         temperature: Optional[float] = None,
         max_length: Optional[int] = None,
         max_context: Optional[int] = None,
-        stop_tokens: Optional[List[str]] = None
+        stop_tokens: Optional[List[str]] = None,
     ) -> str:
         """
-        Query the AI brain with retry logic and error handling.
+        Query the AI brain with retry logic, exponential backoff, and circuit breaker.
 
         Args:
             prompt: The prompt to send
@@ -85,103 +99,86 @@ class BaseAgent(ABC):
             The brain's response text
 
         Raises:
+            CircuitOpenError: If the circuit breaker is open
             BrainConnectionError: If unable to connect
             BrainResponseError: If response is invalid
             RetryExhaustedError: If all retries fail
         """
-        temperature = temperature or DEFAULT_TEMPERATURE
+        temperature = temperature if temperature is not None else DEFAULT_TEMPERATURE
         max_length = max_length or DEFAULT_MAX_LENGTH
         max_context = max_context or DEFAULT_MAX_CONTEXT_LENGTH
         stop_tokens = stop_tokens or STOP_TOKENS
 
-        payload = {
-            "prompt": prompt,
-            "max_context_length": max_context,
-            "max_length": max_length,
-            "temperature": temperature,
-            "stop_sequence": stop_tokens
-        }
-
         last_error: Exception = BrainConnectionError("Initial error placeholder")
+        current_temperature = temperature
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 self.logger.debug(f"Querying brain (attempt {attempt}/{MAX_RETRIES})")
 
-                response = requests.post(
-                    API_URL,
-                    json=payload,
-                    timeout=API_TIMEOUT
+                result = self._circuit_breaker.call(
+                    self._brain.generate,
+                    prompt=prompt,
+                    temperature=current_temperature,
+                    max_length=max_length,
+                    max_context=max_context,
+                    stop_tokens=stop_tokens,
                 )
-                response.raise_for_status()
 
-                result = response.json()
-
-                if 'results' not in result or len(result['results']) == 0:
-                    raise BrainResponseError(
-                        "Invalid response format: missing results",
-                        {'response': result}
-                    )
-
-                text = result['results'][0]['text'].strip()
-
-                if not text:
+                if not result.text:
                     raise BrainResponseError("Brain returned empty response")
 
-                # Log successful query
+                # Audit log with token tracking
                 audit_log(
                     'brain_query',
                     agent=self.role,
                     attempt=attempt,
                     prompt_length=len(prompt),
-                    response_length=len(text),
-                    temperature=temperature
+                    response_length=len(result.text),
+                    temperature=current_temperature,
+                    tokens_used=result.tokens_used,
+                    model=result.model,
                 )
 
-                self.logger.debug(f"Brain query successful (response: {len(text)} chars)")
-                return text
-
-            except requests.exceptions.Timeout as e:
-                last_error = BrainConnectionError(
-                    f"Request timed out after {API_TIMEOUT}s",
-                    {'attempt': attempt, 'error': str(e)}
+                self.logger.debug(
+                    f"Brain query successful ({len(result.text)} chars"
+                    + (f", {result.tokens_used} tokens" if result.tokens_used else "")
+                    + ")"
                 )
-                self.logger.warning(f"Timeout on attempt {attempt}: {e}")
+                return result.text
 
-            except requests.exceptions.ConnectionError as e:
-                last_error = BrainConnectionError(
-                    "Unable to connect to brain API",
-                    {'attempt': attempt, 'error': str(e), 'url': API_URL}
+            except CircuitOpenError:
+                # Circuit is open — don't retry, propagate immediately
+                self.logger.error(
+                    f"Circuit breaker is OPEN for {self.role} — "
+                    "backend is unavailable, aborting retries"
                 )
-                self.logger.warning(f"Connection error on attempt {attempt}: {e}")
+                raise
 
-            except requests.exceptions.HTTPError as e:
-                last_error = BrainResponseError(
-                    f"HTTP error: {e.response.status_code}",
-                    {'attempt': attempt, 'error': str(e)}
-                )
-                self.logger.warning(f"HTTP error on attempt {attempt}: {e}")
-
-            except (BrainResponseError, BrainConnectionError) as e:
+            except (BrainConnectionError, BrainResponseError) as e:
                 last_error = e
                 self.logger.warning(f"Brain error on attempt {attempt}: {e}")
 
             except Exception as e:
                 last_error = BrainConnectionError(
                     "Unexpected error during brain query",
-                    {'attempt': attempt, 'error': str(e)}
+                    {'attempt': attempt, 'error': str(e)},
                 )
-                self.logger.error(f"Unexpected error on attempt {attempt}: {e}", exc_info=True)
+                self.logger.error(
+                    f"Unexpected error on attempt {attempt}: {e}", exc_info=True
+                )
 
-            # If not the last attempt, wait before retrying
+            # Exponential backoff before next attempt
             if attempt < MAX_RETRIES:
-                self.logger.info(f"Retrying in {RETRY_DELAY}s...")
-                time.sleep(RETRY_DELAY)
+                delay = min(RETRY_DELAY * (2 ** (attempt - 1)), RETRY_DELAY_MAX)
+                self.logger.info(
+                    f"Retrying in {delay:.1f}s (exponential backoff, attempt {attempt})..."
+                )
+                time.sleep(delay)
+                current_temperature = min(
+                    1.0, temperature + (RETRY_TEMPERATURE_INCREMENT * attempt)
+                )
 
-                # Increase temperature slightly on retry
-                payload['temperature'] = min(1.0, temperature + (RETRY_TEMPERATURE_INCREMENT * attempt))
-
-        # All retries exhausted
         self.logger.error(f"All {MAX_RETRIES} retry attempts exhausted")
         raise RetryExhaustedError('brain_query', MAX_RETRIES, last_error)
 
@@ -189,7 +186,7 @@ class BaseAgent(ABC):
         self,
         task: str,
         context: str,
-        examples: Optional[str] = None
+        examples: Optional[str] = None,
     ) -> str:
         """
         Build a formatted prompt for the brain.
@@ -228,7 +225,12 @@ RESPONSE:
         """Get the agent's role."""
         return self.role
 
-    def extract_context(self, context: Dict[str, Any], keys: List[str], defaults: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def extract_context(
+        self,
+        context: Dict[str, Any],
+        keys: List[str],
+        defaults: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Extract multiple keys from context dictionary with default values.
 
@@ -245,20 +247,20 @@ RESPONSE:
         """
         defaults = defaults or {}
         result = {}
-        
+
         for key in keys:
             if key in defaults:
                 default_value = defaults[key]
-            elif key in ['file_list', 'files']:
+            elif key in ('file_list', 'files'):
                 default_value = []
             else:
                 default_value = 'unknown'
-            
+
             result[key] = context.get(key, default_value)
-        
+
         return result
 
-    def log_completion(self, event_name: str, **kwargs):
+    def log_completion(self, event_name: str, **kwargs: Any) -> None:
         """
         Log agent completion with audit trail.
 
@@ -268,7 +270,13 @@ RESPONSE:
         """
         audit_log(event_name, **kwargs)
 
-    def handle_extraction_error(self, response: str, error_message: str, error_class: type, context: Optional[Dict[str, Any]] = None):
+    def handle_extraction_error(
+        self,
+        response: str,
+        error_message: str,
+        error_class: type,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Log and raise an error when extraction fails.
 
@@ -304,7 +312,7 @@ class ParallelAgentExecutor:
     def execute_parallel(
         self,
         agents: List[BaseAgent],
-        tasks: List[tuple[str, Dict[str, Any]]]
+        tasks: List[tuple],
     ) -> List[Any]:
         """
         Execute multiple agents in parallel.
@@ -323,26 +331,22 @@ class ParallelAgentExecutor:
             raise ValueError("Number of agents must match number of tasks")
 
         if len(agents) == 1:
-            # No need for parallelization
             return [agents[0].process(tasks[0][0], tasks[0][1])]
 
         self.logger.info(f"Executing {len(agents)} agents in parallel")
 
-        results = [None] * len(agents)
+        results: List[Any] = [None] * len(agents)
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all tasks
             future_to_index = {}
             for i, (agent, (task, context)) in enumerate(zip(agents, tasks)):
                 future = executor.submit(agent.process, task, context)
                 future_to_index[future] = i
 
-            # Collect results as they complete
             for future in as_completed(future_to_index):
                 index = future_to_index[future]
                 try:
-                    result = future.result()
-                    results[index] = result
+                    results[index] = future.result()
                     self.logger.debug(f"Agent {index} completed successfully")
                 except Exception as e:
                     self.logger.error(f"Agent {index} failed: {e}")

@@ -2,6 +2,8 @@
 QA agent - Reviews and validates generated code.
 """
 from typing import Dict, Any, Optional, Tuple
+
+from ..brain import BrainAPI
 from .base_agent import BaseAgent
 from ..utils.text_parsers import validate_python_syntax
 from ..exceptions.errors import CodeValidationError
@@ -13,9 +15,9 @@ class QAAgent(BaseAgent):
     Checks for syntax errors, logic issues, and best practices.
     """
 
-    def __init__(self):
+    def __init__(self, brain: Optional[BrainAPI] = None):
         """Initialize the QA agent."""
-        super().__init__("QA")
+        super().__init__("QA", brain=brain)
 
     def process(self, task: str, context: Dict[str, Any]) -> Tuple[bool, str]:
         """

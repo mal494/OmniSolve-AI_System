@@ -1,7 +1,9 @@
 """
 Architect agent - Designs file structures for projects.
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
+from ..brain import BrainAPI
 from .base_agent import BaseAgent
 from ..utils.text_parsers import extract_json
 from ..exceptions.errors import ParsingError
@@ -13,9 +15,9 @@ class ArchitectAgent(BaseAgent):
     Outputs JSON list of files to create/modify.
     """
 
-    def __init__(self):
+    def __init__(self, brain: Optional[BrainAPI] = None):
         """Initialize the Architect agent."""
-        super().__init__("Architect")
+        super().__init__("Architect", brain=brain)
 
     def process(self, task: str, context: Dict[str, Any]) -> List[Dict[str, str]]:
         """

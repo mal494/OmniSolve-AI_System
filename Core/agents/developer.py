@@ -1,37 +1,57 @@
 """
 Developer agent (Steve) - Writes executable code.
+Uses a handler registry to dispatch file generation by file type.
 """
 from typing import Dict, Any, Optional
+
 from .base_agent import BaseAgent
-from ..utils.text_parsers import extract_code, validate_python_syntax, extract_json_any
+from .handlers import FileTypeRegistry, JSONConfigHandler, JSONHandler, PythonHandler
+from ..brain import BrainAPI
 from ..exceptions.errors import CodeGenerationError
+
+
+def _build_default_registry() -> FileTypeRegistry:
+    """Build and return the default file type handler registry."""
+    registry = FileTypeRegistry()
+    # Registration order = priority; first match wins
+    registry.register(JSONConfigHandler())   # config.json (checked before generic JSON)
+    registry.register(JSONHandler())         # any other .json
+    registry.register(PythonHandler())       # .py files
+    # GenericHandler is the automatic fallback — no need to register
+    return registry
 
 
 class DeveloperAgent(BaseAgent):
     """
     Developer agent (Steve) responsible for writing executable code.
-    Converts logic blueprints into working Python code.
+    Converts logic blueprints into working Python code or config files.
     """
 
-    def __init__(self):
+    def __init__(self, brain: Optional[BrainAPI] = None):
         """Initialize the Developer agent (loads Steve.json)."""
-        super().__init__("Developer")  # This loads Steve.json
+        super().__init__("Developer", brain=brain)
+        self.registry = _build_default_registry()
 
     def process(self, task: str, context: Dict[str, Any]) -> str:
         """
-        Generate executable code for the given task.
+        Generate executable code / file content for the given task.
 
         Args:
             task: The development request
-            context: Dictionary containing 'psi', 'blueprint', 'file_path', and optionally 'project_name'
+            context: Dictionary containing 'psi', 'blueprint', 'file_path',
+                     and optionally 'project_name'
 
         Returns:
-            Generated Python code
+            Generated file content as a string
 
         Raises:
-            CodeGenerationError: If unable to generate valid code
+            CodeGenerationError: If unable to generate valid content
         """
-        ctx = self.extract_context(context, ['psi', 'blueprint', 'file_path', 'project_name'], {'psi': '', 'blueprint': ''})
+        ctx = self.extract_context(
+            context,
+            ['psi', 'blueprint', 'file_path', 'project_name'],
+            {'psi': '', 'blueprint': ''}
+        )
         psi = ctx['psi']
         blueprint = ctx['blueprint']
         file_path = ctx['file_path']
@@ -39,155 +59,17 @@ class DeveloperAgent(BaseAgent):
 
         self.logger.info(f"Generating code for: {file_path}")
 
-        # Build examples for few-shot learning and adjust by file type
-        if file_path.endswith('.py'):
-            examples = """
-Example Output:
-```python
-import json
+        # Dispatch to the appropriate handler
+        handler = self.registry.get_handler(file_path)
 
-def load_config(path):
-    with open(path, 'r') as f:
-        return json.load(f)
-
-def main():
-    config = load_config('config.json')
-    print(f"Loaded: {config}")
-
-if __name__ == '__main__':
-    main()
-```
-"""
-            dev_task = f"""LOGIC BLUEPRINT:
-{blueprint}
-
-FILE TO IMPLEMENT: {file_path}
-
-TASK: Write executable Python code for '{file_path}'.
-
-CRITICAL RULES:
-- Write ONLY code that RUNS
-- Do NOT write comments explaining the plan
-- Do NOT write "Step 1", "Step 2", etc.
-- Output code in a ```python code block
-- Include necessary imports
-- Follow the logic blueprint
-
-CODE:"""
-        elif file_path.endswith('.json'):
-            # If this is the main config file, require a minimal schema
-            if file_path.lower().endswith('config.json') or '/config.json' in file_path.lower():
-                examples = """
-Example Output (config JSON):
-{
-  "name": "project_name",
-  "version": "0.1.0",
-  "settings": {
-    "enabled": true,
-    "log_level": "INFO"
-  }
-}
-"""
-                dev_task = f"""LOGIC BLUEPRINT:
-{blueprint}
-
-FILE TO IMPLEMENT: {file_path}
-
-TASK: Produce the contents of the JSON configuration file '{file_path}'.
-
-CRITICAL RULES:
-- Output ONLY the raw JSON content (no markdown, no code fences)
-- The JSON must be valid and parseable with json.loads
-- The JSON must include the keys: "name" (string), "version" (string), and "settings" (object)
-- The settings object should contain sensible defaults (e.g., "enabled": true, "log_level": "INFO")
-- Do not include comments or explanatory text
-
-CONTENT:"""
-            else:
-                examples = """
-Example Output (JSON):
-{
-  "setting": "value",
-  "enabled": true
-}
-"""
-                dev_task = f"""LOGIC BLUEPRINT:
-{blueprint}
-
-FILE TO IMPLEMENT: {file_path}
-
-TASK: Produce the contents of the JSON file '{file_path}'.
-
-CRITICAL RULES:
-- Output ONLY the raw JSON content (no markdown, no code fences)
-- The JSON must be valid and parseable with json.loads
-- Do not include comments or explanatory text
-- Use appropriate keys/values per the blueprint
-
-CONTENT:"""
-        else:
-            # Generic fallback for other file types: output raw content only
-            examples = """
-Example Output (raw file content):
-<file contents here>
-"""
-            dev_task = f"""LOGIC BLUEPRINT:
-{blueprint}
-
-FILE TO IMPLEMENT: {file_path}
-
-TASK: Produce the file contents for '{file_path}'.
-
-CRITICAL RULES:
-- Output ONLY the raw file content (no markdown, no code fences)
-- Do not include explanatory text
-
-CONTENT:"""
-
+        dev_task, examples = handler.build_task(file_path, blueprint)
         prompt = self.build_prompt(dev_task, psi, examples)
 
         # Query the brain
         response = self.query_brain(prompt, temperature=0.3)
 
-        # Extract result based on expected file type
-        if file_path.endswith('.py'):
-            code = extract_code(response, validate_non_empty=True)
-            if not code:
-                self.handle_extraction_error(
-                    response,
-                    f"Failed to generate valid code for {file_path}",
-                    CodeGenerationError
-                )
-            # Validate syntax
-            is_valid, error_msg = validate_python_syntax(code)
-            if not is_valid:
-                self.logger.warning(f"Generated code has syntax errors: {error_msg}")
-            audit_meta = {
-                'syntax_valid': is_valid
-            }
-            result = code
-        elif file_path.endswith('.json'):
-            # Extract JSON object/array from response
-            parsed = extract_json_any(response)
-            if parsed is None:
-                self.handle_extraction_error(
-                    response,
-                    f"Failed to generate valid JSON for {file_path}",
-                    CodeGenerationError
-                )
-            # Normalize JSON string
-            import json
-            result = json.dumps(parsed, indent=2)
-            audit_meta = {'json_valid': True}
-        else:
-            # Generic fallback: strip markdown and take raw block
-            # Try code block extraction first, then fallback to stripped response
-            content = extract_code(response, validate_non_empty=False)
-            if content:
-                result = content
-            else:
-                result = response.strip()
-            audit_meta = {'raw': True}
+        # Extract result via the handler
+        result = handler.extract_result(response, file_path)
 
         self.logger.info(f"Generated content for {file_path} ({len(result)} chars)")
         self.log_completion(
@@ -195,7 +77,7 @@ CONTENT:"""
             project_name=project_name,
             file_path=file_path,
             code_length=len(result),
-            **audit_meta
+            handler=type(handler).__name__,
         )
 
         return result
@@ -205,7 +87,7 @@ CONTENT:"""
         original_task: str,
         context: Dict[str, Any],
         feedback: str,
-        previous_code: Optional[str] = None
+        previous_code: Optional[str] = None,
     ) -> str:
         """
         Regenerate code with feedback from QA or previous attempt.
@@ -222,7 +104,6 @@ CONTENT:"""
         file_path = context.get('file_path', 'unknown')
         self.logger.info(f"Regenerating code for {file_path} with feedback")
 
-        # Augment the context with feedback
         enhanced_task = f"""{original_task}
 
 PREVIOUS ATTEMPT FAILED.

@@ -47,7 +47,7 @@ class TestAgentWorkflow:
                 ```
                 '''
             elif agent_type == "qa":
-                return "PASS: Code looks good. Syntax is valid."
+                return "PASSED: Code looks good. Syntax is valid."
             return ""
         
         return _mock_response
@@ -91,21 +91,18 @@ class TestAgentWorkflow:
         """Test that Developer produces valid Python code."""
         with patch('Core.agents.base_agent.BaseAgent.query_brain') as mock_query:
             mock_query.return_value = mock_api_response("developer")
-            
+
             developer = DeveloperAgent()
             result = developer.process(
-                file_info={
-                    "path": "main.py",
-                    "type": "python",
-                    "action": "create"
-                },
+                task="Create hello world",
                 context={
-                    "task": "Create hello world",
                     "psi": "Test PSI",
-                    "plan": "Create main function"
+                    "blueprint": "Create main function",
+                    "file_path": "main.py",
+                    "project_name": "test_project",
                 }
             )
-            
+
             assert isinstance(result, str)
             assert len(result) > 0
             # Should be valid Python
@@ -115,18 +112,19 @@ class TestAgentWorkflow:
         """Test QA validation with passing code."""
         with patch('Core.agents.base_agent.BaseAgent.query_brain') as mock_query:
             mock_query.return_value = mock_api_response("qa")
-            
+
             qa = QAAgent()
             code = 'def main():\n    print("Hello")\n\nif __name__ == "__main__":\n    main()'
-            
+
             passed, feedback = qa.process(
-                code=code,
+                task="Review code",
                 context={
+                    "code": code,
                     "file_path": "main.py",
-                    "task": "Hello world"
+                    "project_name": "test_project",
                 }
             )
-            
+
             assert passed is True
             assert isinstance(feedback, str)
 
@@ -215,8 +213,9 @@ class Calculator:
         passed, feedback = qa.quick_validate(code, "calculator.py")
         
         # Should complete without exception
+        # feedback is Optional[str] — None when syntax is valid (no error to report)
         assert isinstance(passed, bool)
-        assert isinstance(feedback, str)
+        assert feedback is None or isinstance(feedback, str)
 
 
 @pytest.mark.integration

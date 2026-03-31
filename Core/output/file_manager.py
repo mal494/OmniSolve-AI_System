@@ -3,6 +3,7 @@ File manager with async write support and validation.
 Handles writing generated code to the filesystem safely.
 """
 import asyncio
+import os
 from pathlib import Path
 from typing import List, Dict, Optional, TYPE_CHECKING
 from concurrent.futures import ThreadPoolExecutor
@@ -78,6 +79,15 @@ class FileManager:
             file_path = file_path[len(project_name) + 1:]
 
         full_path = project_path / file_path
+
+        # Block path traversal attempts (resolve symlinks and normalize)
+        resolved = full_path.resolve()
+        project_resolved = project_path.resolve()
+        if not str(resolved).startswith(str(project_resolved) + os.sep) and resolved != project_resolved:
+            raise FileOperationError(
+                f"Path traversal detected: '{file_path}' escapes project directory",
+                {'file': file_path, 'project': str(project_resolved)}
+            )
 
         # Ensure parent directory exists
         full_path.parent.mkdir(exist_ok=True, parents=True)

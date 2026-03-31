@@ -89,3 +89,21 @@ class RetryExhaustedError(OmniSolveError):
         }
         super().__init__(message, details)
         self.last_error = last_error
+
+
+class CircuitOpenError(OmniSolveError):
+    """Raised when a request is blocked because the circuit breaker is OPEN."""
+
+    def __init__(self, name: str, retry_in: float = 0.0):
+        """
+        Initialize circuit open error.
+
+        Args:
+            name: Name of the circuit (e.g. 'brain')
+            retry_in: Approximate seconds until the circuit may allow retries
+        """
+        message = (
+            f"Circuit breaker '{name}' is OPEN — backend appears unavailable. "
+            f"Retry in ~{retry_in:.0f}s."
+        )
+        super().__init__(message, {'circuit': name, 'retry_in': retry_in})
