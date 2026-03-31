@@ -57,8 +57,19 @@ setup(
             "flake8>=6.0.0",
             "pylint>=2.17.0",
             "mypy>=1.4.0",
+            "types-requests>=2.31.0",
             "black>=23.0.0",
             "isort>=5.12.0",
+        ],
+        "openai": [
+            "openai>=1.0.0",
+        ],
+        "anthropic": [
+            "anthropic>=0.20.0",
+        ],
+        "all": [
+            "openai>=1.0.0",
+            "anthropic>=0.20.0",
         ],
         "docs": [
             "sphinx>=6.0.0",

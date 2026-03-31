@@ -9,7 +9,8 @@ from .errors import (
     ParsingError,
     FileOperationError,
     ProjectError,
-    RetryExhaustedError
+    RetryExhaustedError,
+    CircuitOpenError
 )
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     'ParsingError',
     'FileOperationError',
     'ProjectError',
-    'RetryExhaustedError'
+    'RetryExhaustedError',
+    'CircuitOpenError',
 ]

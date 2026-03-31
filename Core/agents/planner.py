@@ -1,7 +1,9 @@
 """
 Planner agent - Creates pseudocode/logic blueprints.
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
+from ..brain import BrainAPI
 from .base_agent import BaseAgent
 
 
@@ -11,9 +13,9 @@ class PlannerAgent(BaseAgent):
     Outputs pseudocode describing the implementation approach.
     """
 
-    def __init__(self):
+    def __init__(self, brain: Optional[BrainAPI] = None):
         """Initialize the Planner agent."""
-        super().__init__("Planner")
+        super().__init__("Planner", brain=brain)
 
     def process(self, task: str, context: Dict[str, Any]) -> str:
         """

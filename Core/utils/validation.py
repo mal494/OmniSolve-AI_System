@@ -361,7 +361,7 @@ def validate_file_path(file_path: str, project_root: Optional[Path] = None) -> V
     
     # Check for absolute paths
     if file_path.startswith('/') or (len(file_path) > 1 and file_path[1] == ':'):
-        warnings.append("File path is absolute - relative paths are recommended")
+        errors.append("File path is absolute - only relative paths are allowed")
     
     # Check for invalid characters
     invalid_chars = ['<', '>', ':', '"', '|', '?', '*']

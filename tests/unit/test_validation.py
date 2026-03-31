@@ -349,9 +349,10 @@ class TestValidateFilePath:
         assert any("security" in e.lower() for e in result.errors)
 
     def test_absolute_path(self):
-        """Test absolute path generates warning."""
+        """Test absolute path generates error."""
         result = validate_file_path("/absolute/path.py")
-        assert len(result.warnings) > 0
+        assert result.valid is False
+        assert len(result.errors) > 0
 
     def test_invalid_characters(self):
         """Test path with invalid characters."""

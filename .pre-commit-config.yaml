@@ -43,13 +43,13 @@ repos:
         args: ['--max-line-length=100', '--extend-ignore=E203,W503']
         additional_dependencies: [flake8-docstrings]
 
-  # Type checking (optional, can be slow)
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.8.0
-  #   hooks:
-  #     - id: mypy
-  #       additional_dependencies: [types-requests]
-  #       args: ['--ignore-missing-imports']
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        args: ['--ignore-missing-imports', '--no-error-summary']
 
   # Security checks
   - repo: https://github.com/PyCQA/bandit
