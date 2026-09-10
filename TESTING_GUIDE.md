@@ -262,7 +262,12 @@ open htmlcov/index.html
 
 ## Continuous Integration
 
-### GitHub Actions (Planned)
+### GitHub Actions
+
+The repository ships a live CI pipeline in `.github/workflows/tests.yml` — it runs the
+unit + integration suites on Python 3.8–3.12, generates a coverage report (40% gate),
+and runs lint (flake8/pylint/mypy) and security (bandit/safety) jobs. The sample below
+is a minimal illustration only:
 
 ```yaml
 name: Tests
