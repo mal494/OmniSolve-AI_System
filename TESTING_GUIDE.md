@@ -194,21 +194,21 @@ open htmlcov/index.html
 - Edge cases (4 tests)
 - **Status**: All passing
 
-### In Progress Tests
-
-🟡 **psi_generator.py** (16 tests)
+✅ **psi_generator.py** (16 tests)
 - Basic generation (5 tests)
 - Caching (3 tests)
 - Filtering (3 tests)
 - Edge cases (5 tests)
-- **Status**: 6 passing, 10 need fixture improvements
+- **Status**: All passing
 
-🟡 **config_loader.py** (24 tests)
+✅ **config_loader.py** (17 tests)
 - Basic loading (6 tests)
 - Caching (2 tests)
 - Validation (3 tests)
-- Edge cases (13 tests)
-- **Status**: Created, needs testing
+- Edge cases (6 tests)
+- **Status**: All passing
+
+### In Progress Tests
 
 🟡 **agent_workflow.py** (8 integration tests)
 - Agent output formats (4 tests)

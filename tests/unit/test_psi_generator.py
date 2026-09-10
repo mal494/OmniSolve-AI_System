@@ -25,13 +25,19 @@ class TestPSIGenerator:
 
     @pytest.fixture
     def psi_gen(self, temp_projects_dir, monkeypatch):
-        """Create a PSIGenerator with temporary projects directory."""
-        # Patch the PROJECTS_DIR constant before importing
-        import Core.config.constants as constants
-        monkeypatch.setattr(constants, 'PROJECTS_DIR', temp_projects_dir)
-        # Reload to apply the patch
-        from Core.utils.psi_generator import PSIGenerator
-        gen = PSIGenerator()
+        """
+        Create a PSIGenerator with temporary projects directory.
+
+        psi_generator.PROJECTS_DIR is bound at module import time, so the
+        constant must be patched where the module reads it (its own binding),
+        not on the constants module, for new instances to pick it up.
+        NB: importlib, because Core/utils/__init__.py re-exports the
+        `psi_generator` singleton instance, shadowing the submodule name.
+        """
+        import importlib
+        psi_module = importlib.import_module("Core.utils.psi_generator")
+        monkeypatch.setattr(psi_module, 'PROJECTS_DIR', temp_projects_dir)
+        gen = psi_module.PSIGenerator()
         return gen
 
     def test_psi_generator_initialization(self, psi_gen):
@@ -126,19 +132,20 @@ class TestPSIGenerator:
         
         # Generate with cache
         psi1 = psi_gen.generate_psi(project_name, use_cache=True)
-        
+
         # Invalidate cache
         psi_gen.invalidate_cache(project_name)
-        
-        # Modify file
-        with open(os.path.join(project_path, "test.py"), "a") as f:
-            f.write("\n# Modified")
-        
+
+        # Change the project structure (PSI reflects structure, not contents)
+        with open(os.path.join(project_path, "new_module.py"), "w") as f:
+            f.write("# Added after invalidation")
+
         # Generate again - should reflect changes
         psi2 = psi_gen.generate_psi(project_name, use_cache=False)
-        
-        # PSIs should differ since file changed
+
+        # PSIs should differ since project structure changed
         assert psi1 != psi2
+        assert "new_module.py" in psi2
 
     def test_psi_filters_pycache(self, psi_gen, temp_projects_dir):
         """Test that __pycache__ directories are filtered out."""
@@ -198,8 +205,9 @@ class TestPSIGenerator:
         
         assert isinstance(stats, dict)
         assert 'cached_projects' in stats
-        assert 'cache_size' in stats
-        assert project_name in stats['cached_projects']
+        assert 'projects' in stats
+        assert project_name in stats['projects']
+        assert stats['cached_projects'] >= 1
 
     def test_psi_with_special_characters_in_filenames(self, psi_gen, temp_projects_dir):
         """Test PSI handles files with special characters."""
@@ -224,20 +232,23 @@ class TestPSIGenerator:
         project_path = os.path.join(temp_projects_dir, project_name)
         os.makedirs(project_path)
         
-        with open(os.path.join(project_path, "test.py"), "w") as f:
+        with open(os.path.join(project_path, "original.py"), "w") as f:
             f.write("# Original")
-        
+
         # First call with cache disabled
         psi1 = psi_gen.generate_psi(project_name, use_cache=False)
-        
-        # Modify file
-        with open(os.path.join(project_path, "test.py"), "w") as f:
-            f.write("# Modified")
-        
+
+        # Change the project structure (PSI reflects structure, not contents)
+        os.rename(
+            os.path.join(project_path, "original.py"),
+            os.path.join(project_path, "renamed.py"),
+        )
+
         # Call again with cache disabled - should see changes
         psi2 = psi_gen.generate_psi(project_name, use_cache=False)
-        
+
         assert psi1 != psi2
+        assert "renamed.py" in psi2
 
     def test_psi_with_multiple_file_types(self, psi_gen, temp_projects_dir):
         """Test PSI includes various file types."""
