@@ -1,5 +1,46 @@
 # OmniSolve 3.0 - Installation & Setup Guide
 
+## Quick Start (current repository layout)
+
+> The sections below document the legacy Windows/Runtime deployment. The current
+> repository layout (`Core/`, `Config/`, `tests/` at the project root) installs and
+> runs on Linux, macOS, and Windows like any standard Python project:
+
+### 1. Install dependencies (Python 3.8+)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 2. Verify the installation
+
+```bash
+python -c "from Core.config import config_loader; print(config_loader.load_persona('Architect')['name'])"
+python -c "from Core.utils import psi_generator; print(psi_generator.generate_psi('demo'))"
+```
+
+### 3. Run the orchestrator
+
+```bash
+python -m Core.orchestrator --help   # shows the required project/task arguments
+# or, after `pip install -e .`:
+omnisolve --help
+```
+
+Before the first real run, start your LLM backend (KoboldCPP by default; see
+README → “Configuration (Environment Variables)” for `OMNISOLVE_API_URL`,
+`OMNISOLVE_BRAIN_BACKEND`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY`).
+
+### 4. Run the tests
+
+```bash
+python -m pytest tests/unit         # unit tests (no live LLM backend required)
+python -m pytest tests/integration  # integration tests (mock-based)
+python -m pytest                    # full suite + coverage report
+```
+
 ## Prerequisites
 
 - Windows OS

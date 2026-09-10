@@ -113,6 +113,32 @@ The `examples/` directory contains self-contained projects demonstrating increme
 
 These examples include instructions for testing OmniSolve's continuation capabilities.
 
+## Configuration (Environment Variables)
+
+OmniSolve reads configuration from environment variables at import time (all have
+sane defaults; see `Core/config/constants.py`). Set them in your shell or via a
+`.env` file loaded by your environment — the application itself does not require a
+`.env` file to run.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OMNISOLVE_API_URL` | `http://localhost:5001/api/v1/generate` | KoboldCPP (or compatible) LLM API endpoint |
+| `OMNISOLVE_API_TIMEOUT` | `120` | Request timeout in seconds |
+| `OMNISOLVE_BRAIN_BACKEND` | `kobold` | Brain backend: `kobold`, `openai`, `anthropic`, or `mock` |
+| `OMNISOLVE_MAX_RETRIES` | `3` | Maximum LLM retry attempts |
+| `OMNISOLVE_RETRY_DELAY` | `1.0` | Base retry delay in seconds (exponential backoff) |
+| `OMNISOLVE_RETRY_DELAY_MAX` | `30.0` | Retry delay cap in seconds |
+| `OMNISOLVE_CB_THRESHOLD` | `5` | Circuit-breaker failure threshold |
+| `OMNISOLVE_CB_TIMEOUT` | `60.0` | Circuit-breaker recovery window in seconds |
+| `OMNISOLVE_PARALLEL` | `false` | Enable parallel file generation (`true`/`false`) |
+| `OMNISOLVE_LOG_LEVEL` | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `OMNISOLVE_AUDIT_LOG` | `true` | Write JSON audit trails (`true`/`false`) |
+| `OPENAI_MODEL` | `gpt-4o` | Model name for the `openai` backend |
+| `OPENAI_API_KEY` | *(none)* | **Required** when `OMNISOLVE_BRAIN_BACKEND=openai` |
+| `OPENAI_BASE_URL` | *(none)* | Optional API base URL override (e.g. LM Studio, Together AI) |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Model name for the `anthropic` backend |
+| `ANTHROPIC_API_KEY` | *(none)* | **Required** when `OMNISOLVE_BRAIN_BACKEND=anthropic` |
+
 ## Documentation
 
 - **[README.md](README.md)** - This file: System overview and design goals
@@ -130,14 +156,14 @@ These examples include instructions for testing OmniSolve's continuation capabil
 
 **Recent Improvements**:
 - ✅ Modular architecture with 23 refactored modules
-- ✅ Comprehensive test suite (30+ unit tests, integration tests)
+- ✅ Comprehensive test suite (170+ passing tests: 161 unit + 9 integration)
 - ✅ Performance optimizations (PSI caching, pre-compiled regex)
 - ✅ Structured logging with JSON audit trails
 - ✅ Custom exception hierarchy
 - ✅ GitHub Actions CI/CD pipeline
 - ✅ Example projects for testing continuation
 
-**Test Coverage**: 36% (growing - focus on core utilities)
+**Test Coverage**: 72% (measured on Python 3.12 with `--cov=Core` on the full suite)
 
 ## Contributing
 
